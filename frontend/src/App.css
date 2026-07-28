@@ -1,0 +1,100 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-card {
+  width: 420px;
+  padding: 40px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.login-card h1 {
+  text-align: center;
+  color: #1a1a2e;
+  margin-bottom: 8px;
+  font-size: 24px;
+}
+
+.login-card .subtitle {
+  text-align: center;
+  color: #888;
+  margin-bottom: 32px;
+  font-size: 14px;
+}
+
+.dashboard-header {
+  background: #001529;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.dashboard-header h2 {
+  color: #fff;
+  font-size: 18px;
+  margin: 0;
+}
+
+.dashboard-header .user-info {
+  color: #fff;
+  font-size: 14px;
+}
+
+.dashboard-content {
+  padding: 24px;
+  background: #f0f2f5;
+  min-height: calc(100vh - 64px);
+}
+
+.section-card {
+  margin-bottom: 24px;
+}
+
+.radar-container {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.job-card {
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+.job-card.selected {
+  border-color: #1890ff;
+  background: #e6f7ff;
+}
+
+.gap-tag {
+  margin: 4px;
+}
+
+.explain-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.explain-item:last-child {
+  border-bottom: none;
+}
+
+.admin-search {
+  margin-bottom: 24px;
+}
+
+.score-detail-trigger {
+  color: #1890ff;
+  cursor: pointer;
+  font-size: 13px;
+}
