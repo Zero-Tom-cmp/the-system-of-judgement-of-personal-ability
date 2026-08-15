@@ -45,9 +45,6 @@ export default function LoginPage() {
             </Button>
           </Form.Item>
         </Form>
-        <div style={{ textAlign: "center", color: "#aaa", fontSize: 12 }}>
-          学生默认密码: student123 | 管理员: admin / admin123
-        </div>
       </div>
     </div>
   );

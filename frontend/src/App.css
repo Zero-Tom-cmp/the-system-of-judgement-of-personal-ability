@@ -1,5 +1,6 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* ====== 登录页 ====== */
 .login-container {
   min-height: 100vh;
   display: flex;
@@ -30,6 +31,7 @@
   font-size: 14px;
 }
 
+/* ====== 顶栏 ====== */
 .dashboard-header {
   background: #001529;
   padding: 0 24px;
@@ -37,35 +39,42 @@
   align-items: center;
   justify-content: space-between;
   height: 64px;
+  z-index: 10;
+  flex-shrink: 0;
 }
 
 .dashboard-header h2 {
   color: #fff;
   font-size: 18px;
   margin: 0;
+  white-space: nowrap;
 }
 
 .dashboard-header .user-info {
   color: #fff;
   font-size: 14px;
+  white-space: nowrap;
 }
 
+/* ====== 主体内容区 ====== */
 .dashboard-content {
   padding: 24px;
   background: #f0f2f5;
-  min-height: calc(100vh - 64px);
 }
 
 .section-card {
   margin-bottom: 24px;
+  scroll-margin-top: 24px;
 }
 
+/* ====== 雷达图 ====== */
 .radar-container {
   display: flex;
   justify-content: center;
   padding: 16px 0;
 }
 
+/* ====== 岗位匹配 ====== */
 .job-card {
   margin-bottom: 16px;
   border-radius: 8px;
@@ -80,6 +89,7 @@
   margin: 4px;
 }
 
+/* ====== 分数解释 ====== */
 .explain-item {
   padding: 8px 0;
   border-bottom: 1px solid #f0f0f0;
@@ -89,12 +99,23 @@
   border-bottom: none;
 }
 
-.admin-search {
-  margin-bottom: 24px;
-}
-
-.score-detail-trigger {
-  color: #1890ff;
-  cursor: pointer;
-  font-size: 13px;
+/* ====== 打印样式（报告导出） ====== */
+@media print {
+  .dashboard-header, .ant-layout-sider, .ant-btn, .ant-modal,
+  .no-print, .ant-pagination, .ant-collapse-header {
+    display: none !important;
+  }
+  .dashboard-content, .dashboard-content-inner {
+    overflow: visible !important;
+    height: auto !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .section-card {
+    break-inside: avoid;
+    margin-bottom: 12px !important;
+    border: 1px solid #eee !important;
+  }
+  .ant-collapse-content { display: block !important; }
+  .ant-collapse-content-box { padding: 8px !important; }
 }

@@ -1,9 +1,14 @@
 import ReactECharts from "echarts-for-react";
 
+import { Empty } from "antd";
+
 export default function AbilityRadar({ abilities }) {
   if (!abilities) return null;
 
-  const dims = abilities.ability_dims;
+  const dims = abilities.ability_dims || [];
+  if (dims.length === 0) {
+    return <Empty description="暂无能力评估数据，请先添加课程、竞赛、实习或项目数据" />;
+  }
   const scores = dims.map((d) => abilities.abilities[d]?.score || 0);
 
   const option = {

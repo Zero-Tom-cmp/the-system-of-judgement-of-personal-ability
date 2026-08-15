@@ -14,6 +14,9 @@ dist/
 .vscode/
 .idea/
 
+# Conflicts & logs
+backend/conflicts/
+
 # OS
 .DS_Store
 Thumbs.db

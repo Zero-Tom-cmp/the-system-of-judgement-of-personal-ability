@@ -8,9 +8,9 @@
 4. 归一化到 0-100 分，生成解释信息
 """
 
-LEVEL_SCORE = {"国际": 5, "国家": 4, "省": 3, "校": 2, "院": 1}
+LEVEL_SCORE = {"国家级": 4, "省级": 3}
 AWARD_SCORE = {"特等奖": 5, "一等奖": 4, "二等奖": 3, "三等奖": 2, "参与奖": 1}
-ROLE_FACTOR = {"队长": 1.2, "核心队员": 1.0, "队员": 0.8}
+RANK_FACTOR = {1: 1.2, 2: 1.0, 3: 0.8}
 COMPANY_TIER = {
     "阿里巴巴": 5, "腾讯": 5, "字节跳动": 5, "百度": 5, "美团": 4,
     "中信证券": 5, "中国银行": 4, "平安保险": 4, "京东": 4, "网易": 4,
@@ -63,14 +63,15 @@ def evaluate_student_abilities(cursor, student_id: str) -> dict:
     # 4. 项目贡献 (满分约10分)
     _eval_projects(cursor, student_id, contributions)
 
-    # 归一化到 0-100
+    # 归一化到 0-100，乘以该专业的能力权重
     final_scores = {}
-    for dim in ability_dims:
+    for dim, weight in ability_dims.items():
         raw = contributions[dim]["total"]
-        # 使用 sigmoid-like 映射，满分约100
-        score = min(100, max(0, round(raw * 100 / 50)))
+        # raw * 100 / 50 得到基础分，再乘以专业权重得到加权分
+        base_score = min(100, max(0, round(raw * 100 / 50)))
+        weighted_score = min(100, max(0, round(base_score * weight * (1 / 0.2))))  # 以0.2为基准权重
         final_scores[dim] = {
-            "score": score,
+            "score": weighted_score,
             "details": contributions[dim]["details"],
         }
 
@@ -131,11 +132,12 @@ def _eval_competitions(cursor, student_id, contributions):
     ).fetchall()
 
     for comp in comps:
-        level_v = LEVEL_SCORE.get(comp["level"], 1)
+        level_v = LEVEL_SCORE.get(comp["level"], 2)
         award_v = AWARD_SCORE.get(comp["award"], 1)
-        role_v = ROLE_FACTOR.get(comp["role"], 0.8)
-        raw = level_v * award_v * role_v
-        max_possible = 25  # 5*5*1.0
+        rank = comp["rank"] if comp["rank"] else 3
+        rank_v = RANK_FACTOR.get(rank, 0.8)
+        raw = level_v * award_v * rank_v
+        max_possible = 24  # 4*5*1.2
 
         # 匹配竞赛到能力维度
         matched = False
@@ -148,7 +150,7 @@ def _eval_competitions(cursor, student_id, contributions):
                         contributions[dim]["details"].append({
                             "source": f"竞赛: {comp['comp_name']}",
                             "value": round(contrib, 1),
-                            "comment": f"等级{comp['level']}，获奖{comp['award']}，角色{comp['role']}",
+                            "comment": f"{comp['level']}，{comp['award']}，队内排名第{comp['rank']}",
                         })
                 matched = True
                 break
@@ -162,7 +164,7 @@ def _eval_competitions(cursor, student_id, contributions):
                     contributions[dim]["details"].append({
                         "source": f"竞赛: {comp['comp_name']}",
                         "value": round(contrib, 1),
-                        "comment": f"等级{comp['level']}，获奖{comp['award']}",
+                        "comment": f"{comp['level']}，{comp['award']}，队内排名第{comp['rank']}",
                     })
 
 
@@ -173,9 +175,7 @@ def _eval_internships(cursor, student_id, contributions):
 
     for intern in internships:
         company_v = COMPANY_TIER.get(intern["company"], 2)
-        duration = min(intern["duration_months"], 6)
-
-        raw = company_v * (duration / 6)
+        raw = company_v / 5  # 归一化到 0~1
 
         # 根据职位判断贡献维度
         position = intern["position"]
@@ -192,12 +192,12 @@ def _eval_internships(cursor, student_id, contributions):
 
         for dim, weight in ability_map.items():
             if dim in contributions:
-                contrib = raw * weight * 10 / 5  # 满分约10
+                contrib = raw * weight * 10  # 满分约10
                 contributions[dim]["total"] += contrib
                 contributions[dim]["details"].append({
-                    "source": f"实习: {intern['company']} {position}",
+                    "source": f"企业实习: {intern['company']} {position}",
                     "value": round(contrib, 1),
-                    "comment": f"{intern['company']}，{position}，{intern['duration_months']}个月",
+                    "comment": f"{intern['company']}，{position}，{intern['period']}",
                 })
 
 
@@ -207,33 +207,25 @@ def _eval_projects(cursor, student_id, contributions):
     ).fetchall()
 
     for proj in projects:
-        role = proj["role"]
-        tech_stack = proj["tech_stack"].lower()
+        rank = proj["rank"] if proj["rank"] else 3
+        rank_factor = RANK_FACTOR.get(rank, 0.8)
 
-        if "负责人" in role or "发起人" in role:
-            role_factor = 1.2
-        elif "核心" in role:
-            role_factor = 1.0
-        elif "独立" in role:
-            role_factor = 1.1
-        else:
-            role_factor = 0.8
-
-        # 根据技术栈判断贡献维度
+        # 根据项目描述关键词判断贡献维度
+        desc = proj["description"]
         ability_map = {}
-        if any(t in tech_stack for t in ["python", "spring", "node", "go", "java"]):
+        if any(kw in desc for kw in ["Spring", "Django", "Node", "Go", "Java", "Python", "后端", "后台"]):
             ability_map["编程能力"] = max(ability_map.get("编程能力", 0), 0.5)
             ability_map["工程实践"] = max(ability_map.get("工程实践", 0), 0.5)
-        if any(t in tech_stack for t in ["react", "vue", "next", "tailwind"]):
+        if any(kw in desc for kw in ["React", "Vue", "前端", "UI", "页面"]):
             ability_map["编程能力"] = max(ability_map.get("编程能力", 0), 0.4)
             ability_map["工程实践"] = max(ability_map.get("工程实践", 0), 0.5)
-        if any(t in tech_stack for t in ["sklearn", "scikit-learn", "pandas", "numpy", "matplotlib"]):
+        if any(kw in desc for kw in ["算法", "推荐", "机器学习", "模型", "预测", "分类", "回归"]):
             ability_map["算法思维"] = max(ability_map.get("算法思维", 0), 0.4)
             ability_map["数理分析"] = max(ability_map.get("数理分析", 0), 0.4)
             ability_map["学习能力"] = max(ability_map.get("学习能力", 0), 0.3)
-        if any(t in tech_stack for t in ["mysql", "redis", "mongodb", "postgresql"]):
+        if any(kw in desc for kw in ["数据库", "MySQL", "Redis", "MongoDB"]):
             ability_map["工程实践"] = max(ability_map.get("工程实践", 0), 0.4)
-        if any(t in tech_stack for t in ["excel", "wind", "sql"]):
+        if any(kw in desc for kw in ["财务", "估值", "金融", "量化", "交易", "信用"]):
             ability_map["财务技能"] = max(ability_map.get("财务技能", 0), 0.4)
             ability_map["数理分析"] = max(ability_map.get("数理分析", 0), 0.3)
 
@@ -243,20 +235,40 @@ def _eval_projects(cursor, student_id, contributions):
 
         for dim, weight in ability_map.items():
             if dim in contributions:
-                contrib = role_factor * weight * 10
+                contrib = rank_factor * weight * 10
                 contributions[dim]["total"] += contrib
                 contributions[dim]["details"].append({
                     "source": f"项目: {proj['project_name']}",
                     "value": round(contrib, 1),
-                    "comment": f"角色: {role}，技术栈: {proj['tech_stack']}",
+                    "comment": f"队内排名第{proj['rank']}，{proj['period']}",
                 })
 
 
 def match_jobs(cursor, student_id: str) -> list:
     """将学生能力与岗位要求进行匹配"""
+    # 检查学生是否有任何评估数据
+    has_data = False
+    for table in ["courses", "competitions", "internships", "projects"]:
+        count = cursor.execute(
+            f"SELECT COUNT(*) as c FROM {table} WHERE student_id = ?", (student_id,)
+        ).fetchone()["c"]
+        if count > 0:
+            has_data = True
+            break
+
+    if not has_data:
+        return []  # 无任何数据，无法评估
+
     ability_result = evaluate_student_abilities(cursor, student_id)
     student_abilities = {dim: info["score"] for dim, info in ability_result["abilities"].items()}
     major = ability_result["major"]
+
+    # 根据学生专业筛选相关岗位
+    MAJOR_JOBS = {
+        "软件工程": ["后端开发工程师", "算法工程师", "前端开发工程师"],
+        "金融学":   ["金融分析师", "风险管理师"],
+    }
+    relevant_jobs = MAJOR_JOBS.get(major, [])
 
     # 获取所有岗位的能力要求
     job_profiles = cursor.execute(
@@ -277,6 +289,9 @@ def match_jobs(cursor, student_id: str) -> list:
 
     results = []
     for job_name, requirements in jobs.items():
+        # 跳过与该专业无关的岗位
+        if relevant_jobs and job_name not in relevant_jobs:
+            continue
         total_match = 0
         total_weight = 0
         dim_matches = []
@@ -287,7 +302,15 @@ def match_jobs(cursor, student_id: str) -> list:
             required = req["required"]
             weight = req["weight"]
 
-            student_score = student_abilities.get(dim, 50)
+            student_score = student_abilities.get(dim)
+            if student_score is None:
+                # 该维度学生无数据，不计入匹配
+                dim_matches.append({
+                    "dimension": dim, "student_score": None, "required": required,
+                    "match_rate": None, "weight": weight, "insufficient": True,
+                })
+                continue
+            student_score = max(0, student_score)  # 确保非负
 
             # 单维度匹配度 = 学生分/要求分 (max 100%)
             dim_match = min(100, round(student_score / required * 100, 1)) if required > 0 else 100
