@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>简历模板 A · 极简单栏（版式参考 CareerExpert 示例）</title>
+<style>
+  /* ========= 版式参考来源 =========
+     alvinluo-tech/CareerExpert 中文单页简历示例的设计体系：
+     单一强调色 + 药丸式分区标题 + 弹性行项目头
+     @page A4 / 强调色 #0f766e / 正文 10pt / 行高 1.45 */
+
+  @page { size: A4; margin: 1.5cm; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --accent: #0f766e;
+    --accent-pale: #f0fdfa;
+    --ink: #0f172a;
+    --sub: #475569;
+    --divider: #e2e8f0;
+  }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    font-family: "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 10pt;
+    line-height: 1.45;
+    color: var(--ink);
+    background: #e8eaed;
+  }
+
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 28px auto;
+    padding: 1.5cm;
+    background: #fff;
+    box-shadow: 0 3px 18px rgba(0, 0, 0, .16);
+  }
+
+  /* ========= 头部：姓名 + 联系方式（底边线） ========= */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12pt;
+    padding-bottom: 6pt;
+    border-bottom: 1.5pt solid var(--accent);
+  }
+  .header h1 {
+    font-size: 20pt;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    line-height: 1.15;
+  }
+  .header .tagline {
+    display: block;
+    margin-top: 2pt;
+    font-size: 10pt;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .contact {
+    text-align: right;
+    font-size: 9pt;
+    line-height: 1.75;
+    color: var(--sub);
+    white-space: nowrap;
+  }
+  .contact a { color: var(--accent); text-decoration: none; }
+
+  /* ========= 分区标题：药丸式（淡底 + 左侧强调条） ========= */
+  h2 {
+    margin: 11pt 0 6pt;
+    padding: 2.5pt 8pt;
+    font-size: 10.8pt;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent);
+    background: var(--accent-pale);
+    border-left: 3pt solid var(--accent);
+    border-radius: 0 3pt 3pt 0;
+  }
+  .page > section:first-of-type h2 { margin-top: 9pt; }
+
+  /* ========= 经历条目 ========= */
+  .entry { margin-bottom: 7pt; break-inside: avoid; }
+  .entry:last-child { margin-bottom: 0; }
+  .entry-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8pt;
+  }
+  .entry-title { font-weight: 700; }
+  .entry-role { margin-left: 6pt; font-size: 9.4pt; font-weight: 600; color: var(--accent); }
+  .entry-date { font-size: 9pt; color: var(--sub); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .entry-sub { margin-top: 1pt; font-size: 9.4pt; color: var(--sub); }
+
+  ul.bullets { list-style: none; margin-top: 2.5pt; }
+  ul.bullets li {
+    position: relative;
+    padding-left: 12pt;
+    margin-top: 2pt;
+    text-align: justify;
+  }
+  ul.bullets li::before {
+    content: "";
+    position: absolute;
+    left: 2pt;
+    top: 6.5pt;
+    width: 3.5pt;
+    height: 3.5pt;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  /* ========= 技能组 ========= */
+  .skill-group { display: flex; align-items: baseline; margin-top: 3pt; }
+  .skill-label { flex: 0 0 86pt; font-size: 9.6pt; font-weight: 700; color: var(--accent); }
+  .skill-content { flex: 1; }
+
+  /* ========= 竞赛（一行一条） ========= */
+  .comp {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8pt;
+    margin-top: 3.5pt;
+  }
+  .comp-name { font-weight: 600; }
+  .comp-meta { font-size: 9pt; color: var(--sub); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* ========= 屏幕预览提示（打印隐藏） ========= */
+  .demo-note {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(20, 20, 20, .82);
+    color: #fff;
+    font-size: 12px;
+    padding: 5px 14px;
+    border-radius: 99px;
+    letter-spacing: 1px;
+    z-index: 99;
+  }
+
+  @media print {
+    body { background: #fff; }
+    .page { width: auto; min-height: auto; margin: 0; padding: 0; box-shadow: none; }
+    .demo-note { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-note">示例数据 · 仅用于版式确认，尚未接入真实数据</div>
+
+<div class="page">
+
+  <header class="header">
+    <div>
+      <h1>陈嘉睿</h1>
+      <span class="tagline">求职方向：后端开发工程师</span>
+    </div>
+    <div class="contact">
+      138-0000-0000 · chenjr@example.com<br>
+      github.com/chenjr · 上海
+    </div>
+  </header>
+
+  <section>
+    <h2>教育背景</h2>
+    <div class="entry">
+      <div class="entry-head">
+        <span><span class="entry-title">计算机学院 · 软件工程</span><span class="entry-role">本科在读</span></span>
+        <span class="entry-date">2021.09 — 2025.06</span>
+      </div>
+      <div class="entry-sub">GPA 3.82 / 4.0（专业排名 5 / 120，前 4%）· 已修 42 门课程 / 156 学分</div>
+      <div class="entry-sub">核心课程：数据结构与算法 95 · 操作系统 93 · 数据库系统原理 92 · 计算机网络 91 · 软件工程 90</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>专业技能</h2>
+    <div class="skill-group"><span class="skill-label">编程语言</span><span class="skill-content">Python / Java / Go / SQL</span></div>
+    <div class="skill-group"><span class="skill-label">后端框架</span><span class="skill-content">FastAPI / Spring Boot / Gin</span></div>
+    <div class="skill-group"><span class="skill-label">数据与中间件</span><span class="skill-content">MySQL / Redis / RabbitMQ</span></div>
+    <div class="skill-group"><span class="skill-label">开发工具</span><span class="skill-content">Git / Docker / Linux / Postman</span></div>
+  </section>
+
+  <section>
+    <h2>实习经历</h2>
+    <div class="entry">
+      <div class="entry-head">
+        <span><span class="entry-title">星野科技有限公司</span><span class="entry-role">后端开发实习生</span></span>
+        <span class="entry-date">2024.07 — 2024.09</span>
+      </div>
+      <ul class="bullets">
+        <li>主导订单查询服务重构，基于 Go + Gin 引入 Redis 二级缓存，接口 P99 延迟由 320ms 降至 85ms</li>
+        <li>设计 MySQL 分表方案支撑 5000 万行订单数据，慢查询数量下降 90%，写入吞吐提升 3 倍</li>
+        <li>补充单元测试 120 余个，模块测试覆盖率由 45% 提升至 82%</li>
+      </ul>
+    </div>
+    <div class="entry">
+      <div class="entry-head">
+        <span><span class="entry-title">云枢信息技术有限公司</span><span class="entry-role">后端开发实习生</span></span>
+        <span class="entry-date">2023.07 — 2023.08</span>
+      </div>
+      <ul class="bullets">
+        <li>参与用户中心 API 开发，基于 Spring Boot 完成 8 个 RESTful 接口，日均调用量 10 万+</li>
+        <li>使用 JMeter 压测定位慢接口，通过索引与 SQL 优化将平均响应时间由 450ms 降至 120ms</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>项目经历</h2>
+    <div class="entry">
+      <div class="entry-head">
+        <span><span class="entry-title">智能简历解析系统</span><span class="entry-role">项目负责人</span></span>
+        <span class="entry-date">2023.09 — 2023.12</span>
+      </div>
+      <div class="entry-sub">技术栈：Python / FastAPI / PaddleOCR / MySQL / Docker</div>
+      <ul class="bullets">
+        <li>负责整体架构设计与核心解析模块开发，实现 PDF / 图片简历的结构化字段抽取，准确率达 92%</li>
+        <li>设计规则引擎支持 6 类简历版式自动适配，人工校对工作量减少约 70%</li>
+      </ul>
+    </div>
+    <div class="entry">
+      <div class="entry-head">
+        <span><span class="entry-title">校园二手交易平台</span><span class="entry-role">后端负责人</span></span>
+        <span class="entry-date">2022.10 — 2023.01</span>
+      </div>
+      <div class="entry-sub">技术栈：Java / Spring Boot / MySQL / Redis / 微信小程序</div>
+      <ul class="bullets">
+        <li>独立完成商品、订单、支付三个核心模块的后端开发与部署，累计注册用户 3000+</li>
+        <li>引入 Redis 缓存热点商品数据，首屏加载时间由 1.8s 优化至 0.6s</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>竞赛获奖</h2>
+    <div class="comp">
+      <span class="comp-name">中国大学生计算机设计大赛</span>
+      <span class="comp-meta">国家级 · 二等奖 · 队内排名第 2 · 2024.08</span>
+    </div>
+    <div class="comp">
+      <span class="comp-name">蓝桥杯全国软件和信息技术专业人才大赛</span>
+      <span class="comp-meta">省级 · 一等奖 · 队内排名第 1 · 2023.04</span>
+    </div>
+    <div class="comp">
+      <span class="comp-name">中国大学生服务外包创新创业大赛</span>
+      <span class="comp-meta">省级 · 三等奖 · 队内排名第 3 · 2023.06</span>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

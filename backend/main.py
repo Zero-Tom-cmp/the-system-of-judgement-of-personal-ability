@@ -6,9 +6,9 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from pydantic import BaseModel
 
 from database import get_db, init_db
@@ -59,7 +59,10 @@ def _save_conflicts_to_disk(sheet_name, errors):
             writer.writerow([sid, len(items)])
 
     return folder
-from evaluation import evaluate_student_abilities, match_jobs
+from evaluation import (
+    evaluate_student_abilities, match_jobs,
+    ENGLISH_CERT_LEVELS, ENGLISH_CERT_MAX_SCORE,
+)
 
 app = FastAPI(title="人岗匹配评估系统")
 
@@ -174,7 +177,8 @@ def get_student_info(student_id: str, request: Request):
     conn = get_db()
     try:
         user = conn.execute(
-            "SELECT student_id, name, college, major, class_name, gpa, role FROM students WHERE student_id = ?",
+            "SELECT student_id, name, college, major, class_name, gpa, role,"
+            " english_cert, english_score FROM students WHERE student_id = ?",
             (student_id,),
         ).fetchone()
         if not user:
@@ -286,6 +290,58 @@ def get_job_match(student_id: str, request: Request):
         conn.close()
 
 
+@app.get("/api/student/{student_id}/resume")
+def get_student_resume(student_id: str, request: Request):
+    """聚合学生数据生成简历结构化内容（模板一 · 极简单栏）"""
+    payload = verify_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
+    if payload["role"] != "admin" and payload["student_id"] != student_id:
+        raise HTTPException(status_code=403, detail="只能查看自己的信息")
+
+    conn = get_db()
+    try:
+        from resume import build_resume_payload
+        try:
+            return build_resume_payload(conn.cursor(), student_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="学生不存在")
+    finally:
+        conn.close()
+
+
+@app.get("/api/student/{student_id}/resume/pdf")
+def download_student_resume_pdf(student_id: str, request: Request, background_tasks: BackgroundTasks):
+    """渲染简历 HTML 并用 Edge headless 打印成 A4 PDF"""
+    payload = verify_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
+    if payload["role"] != "admin" and payload["student_id"] != student_id:
+        raise HTTPException(status_code=403, detail="只能查看自己的信息")
+
+    conn = get_db()
+    try:
+        from resume import build_resume_payload, render_resume_html, render_pdf
+        try:
+            data = build_resume_payload(conn.cursor(), student_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="学生不存在")
+    finally:
+        conn.close()
+
+    generated_at = datetime.now().strftime("%Y.%m")
+    html_text = render_resume_html(data, generated_at=generated_at)
+    tmp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tmp")
+    basename = f"resume_{student_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    try:
+        pdf_path = render_pdf(html_text, tmp_dir, basename)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    for f in (os.path.join(tmp_dir, f"{basename}.html"), pdf_path):
+        background_tasks.add_task(lambda p=f: os.path.isfile(p) and os.remove(p))
+
+    filename = f"{data['basic']['name']}-简历.pdf"
+    return FileResponse(pdf_path, media_type="application/pdf", filename=filename,
+                        headers={"Cache-Control": "no-store"})
+
+
 @app.get("/api/admin/students")
 def admin_list_students(request: Request, page: int = 1, page_size: int = 100, search: str = "", college: str = "", major: str = ""):
     payload = verify_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
@@ -310,7 +366,7 @@ def admin_list_students(request: Request, page: int = 1, page_size: int = 100, s
 
         offset = (page - 1) * page_size
         rows = conn.execute(
-            f"SELECT student_id, name, college, major, class_name, gpa FROM students WHERE {where_clause} ORDER BY student_id LIMIT ? OFFSET ?",
+            f"SELECT student_id, name, college, major, class_name, gpa, english_cert, english_score FROM students WHERE {where_clause} ORDER BY student_id LIMIT ? OFFSET ?",
             params + [page_size, offset],
         ).fetchall()
         return {"data": [dict(r) for r in rows], "total": count, "page": page, "page_size": page_size}
@@ -326,7 +382,7 @@ def admin_search(q: str, request: Request):
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT student_id, name, college, major, class_name, gpa FROM students WHERE role = 'student' AND (student_id LIKE ? OR name LIKE ?)",
+            "SELECT student_id, name, college, major, class_name, gpa, english_cert, english_score FROM students WHERE role = 'student' AND (student_id LIKE ? OR name LIKE ?)",
             (f"%{q}%", f"%{q}%"),
         ).fetchall()
         return [dict(r) for r in rows]
@@ -366,6 +422,33 @@ def admin_stats(request: Request):
 
 # ========== 管理员：学生 CRUD ==========
 
+def _normalize_english_cert(cert, score):
+    """校验并规范化「英语证书 + 成绩」这一对字段,返回 (cert, score)。
+
+    cert 为 None 表示未填写,此时成绩一并置 None。证书类型不合法、缺成绩、
+    成绩越界都抛 400 —— 新建和修改两个接口共用这套规则,避免各写一份走样。
+    只有金融学的「英语能力」维度会用到,见 evaluation._eval_english_cert。
+    """
+    cert = str(cert).strip().upper() or None if cert is not None else None
+    if cert is None:
+        if score is not None:
+            raise HTTPException(status_code=400, detail="填写英语成绩时必须同时给出证书类型")
+        return None, None
+    if cert not in ENGLISH_CERT_LEVELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的证书类型 {cert}，可选：{'、'.join(ENGLISH_CERT_LEVELS)}")
+    if score is None:
+        raise HTTPException(status_code=400, detail=f"填写 {cert} 时必须同时给出分数")
+    low = min(t for t, _ in ENGLISH_CERT_LEVELS[cert])
+    high = ENGLISH_CERT_MAX_SCORE[cert]
+    if not low <= float(score) <= high:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{cert} 分数应在 {low}~{high:g} 之间，当前为 {score}")
+    return cert, float(score)
+
+
 class StudentCreate(BaseModel):
     student_id: str
     name: str
@@ -374,6 +457,9 @@ class StudentCreate(BaseModel):
     class_name: str
     gpa: float
     password: str
+    # 可选,不填即无证书
+    english_cert: str = None
+    english_score: float = None
 
 class StudentUpdate(BaseModel):
     name: str = None
@@ -382,6 +468,10 @@ class StudentUpdate(BaseModel):
     class_name: str = None
     gpa: float = None
     password: str = None
+    # 英语证书。english_cert 传空字符串表示"清空该证书",
+    # 与"本次不修改"（传 None / 不传）区分开。
+    english_cert: str = None
+    english_score: float = None
 
 
 @app.post("/api/admin/student")
@@ -394,9 +484,10 @@ def admin_create_student(req: StudentCreate, request: Request):
         if existing:
             raise HTTPException(status_code=400, detail="学号已存在")
         pwd_hash = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt()).decode()
+        cert, score = _normalize_english_cert(req.english_cert, req.english_score)
         conn.execute(
-            "INSERT INTO students (student_id, name, college, major, class_name, gpa, password_hash, role) VALUES (?, ?, ?, ?, ?, ?, ?, 'student')",
-            (req.student_id, req.name, req.college, req.major, req.class_name, req.gpa, pwd_hash),
+            "INSERT INTO students (student_id, name, college, major, class_name, gpa, password_hash, role, english_cert, english_score) VALUES (?, ?, ?, ?, ?, ?, ?, 'student', ?, ?)",
+            (req.student_id, req.name, req.college, req.major, req.class_name, req.gpa, pwd_hash, cert, score),
         )
         audit_log(conn.cursor(), payload["student_id"], "创建", "student", req.student_id)
         conn.commit()
@@ -426,6 +517,19 @@ def admin_update_student(student_id: str, req: StudentUpdate, request: Request):
             updates.append("class_name = ?"); params.append(req.class_name)
         if req.gpa is not None:
             updates.append("gpa = ?"); params.append(req.gpa)
+        # 英语证书:两个字段必须一致地校验,所以按"改动后的最终状态"判断,
+        # 而不是单看请求里传了哪个字段。
+        if req.english_cert is not None or req.english_score is not None:
+            cert = req.english_cert if req.english_cert is not None else existing["english_cert"]
+            # 证书被清空时成绩一并清空。这里不能沿用库里的旧成绩,否则"改动后的
+            # 状态"会变成"有成绩没证书",被下面的校验判成非法。
+            if cert is None or not str(cert).strip():
+                cert = score = None
+            else:
+                score = req.english_score if req.english_score is not None else existing["english_score"]
+            cert, score = _normalize_english_cert(cert, score)
+            updates.append("english_cert = ?"); params.append(cert)
+            updates.append("english_score = ?"); params.append(score)
         if req.password is not None:
             pwd_hash = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt()).decode()
             updates.append("password_hash = ?"); params.append(pwd_hash)
@@ -829,10 +933,42 @@ def _log_import_error(error_type, detail, file_name=""):
 
 # ========== 综合导入（Excel，需注册在批量导入之前） ==========
 
+
+def _parse_english_cert(vals):
+    """从导入行解析英语证书，返回 (证书类型, 分数)。
+
+    两个单元格都为空时返回 (None, None)，表示"本次不修改该学生的证书"——
+    导入表里没写这一列，不应该把已有证书抹掉。
+    只填了其中一个、类型不认识、或分数越界时抛 ValueError，由导入循环
+    记到该行，不影响同批其他行。
+    """
+    cert = (vals.get("英语证书") or "").strip().upper()
+    raw_score = (vals.get("英语成绩") or "").strip()
+    if not cert and not raw_score:
+        return None, None
+    if not cert:
+        raise ValueError("填了「英语成绩」却没填「英语证书」")
+    if cert not in ENGLISH_CERT_LEVELS:
+        raise ValueError(f"不支持的英语证书「{cert}」，可选：{'、'.join(ENGLISH_CERT_LEVELS)}")
+    if not raw_score:
+        raise ValueError("填了「英语证书」却没填「英语成绩」")
+
+    score = float(raw_score)
+    low = min(t for t, _ in ENGLISH_CERT_LEVELS[cert])
+    high = ENGLISH_CERT_MAX_SCORE[cert]
+    if not low <= score <= high:
+        raise ValueError(f"{cert} 分数应在 {low}~{high:g} 之间，当前为 {score:g}")
+    return cert, score
+
+
 SHEET_CONFIG = {
     "学生基本信息": {
         "table": "students", "columns": ["student_id", "name", "college", "major", "class_name", "gpa", "password_hash"],
-        "headers": ["学号", "姓名", "学院", "专业", "班级", "GPA", "密码"], "mode": "upsert",
+        # 英语证书两列放在 headers 里才认得到，但要同时在 optional_headers 里
+        # 声明为"可选"——否则老模板会因为缺少这两列整批失败。
+        "headers": ["学号", "姓名", "学院", "专业", "班级", "GPA", "密码", "英语证书", "英语成绩"],
+        "optional_headers": ["英语证书", "英语成绩"],
+        "mode": "upsert",
         "conflict_keys": None,  # upsert 模式不检测冲突
     },
     "课程成绩": {
@@ -889,7 +1025,8 @@ async def admin_import_all(file: UploadFile = File(...), request: Request = None
             col_map = {}
             for i, h in enumerate(header):
                 if h in config["headers"]: col_map[h] = i
-            missing = [h for h in config["headers"] if h not in col_map]
+            optional = set(config.get("optional_headers", []))
+            missing = [h for h in config["headers"] if h not in col_map and h not in optional]
             if missing:
                 results[sheet_name] = {"success": 0, "error": f"缺少列: {', '.join(missing)}"}
                 continue
@@ -905,20 +1042,24 @@ async def admin_import_all(file: UploadFile = File(...), request: Request = None
                         sid = vals["学号"]
                         pwd = vals.get("密码", "") or ""
                         gpa = float(vals.get("GPA", 0) or 0)
+                        cert, cert_score = _parse_english_cert(vals)
                         existing = conn.execute("SELECT id FROM students WHERE student_id = ?", (sid,)).fetchone()
                         if existing:
                             # 更新时不修改密码，除非明确提供了新密码
+                            fields = ["name=?", "college=?", "major=?", "class_name=?", "gpa=?"]
+                            params = [vals["姓名"], vals["学院"], vals["专业"], vals["班级"], gpa]
                             if pwd and len(pwd) >= 6:
-                                pwd_hash = bcrypt.hashpw(pwd.encode(), bcrypt.gensalt()).decode()
-                                conn.execute("UPDATE students SET name=?,college=?,major=?,class_name=?,gpa=?,password_hash=? WHERE student_id=?",
-                                    (vals["姓名"], vals["学院"], vals["专业"], vals["班级"], gpa, pwd_hash, sid))
-                            else:
-                                conn.execute("UPDATE students SET name=?,college=?,major=?,class_name=?,gpa=? WHERE student_id=?",
-                                    (vals["姓名"], vals["学院"], vals["专业"], vals["班级"], gpa, sid))
+                                fields.append("password_hash=?")
+                                params.append(bcrypt.hashpw(pwd.encode(), bcrypt.gensalt()).decode())
+                            if cert is not None:
+                                fields += ["english_cert=?", "english_score=?"]
+                                params += [cert, cert_score]
+                            params.append(sid)
+                            conn.execute(f"UPDATE students SET {', '.join(fields)} WHERE student_id=?", params)
                         else:
                             pwd_hash = bcrypt.hashpw((pwd if pwd and len(pwd) >= 6 else "student123").encode(), bcrypt.gensalt()).decode()
-                            conn.execute("INSERT INTO students (student_id,name,college,major,class_name,gpa,password_hash,role) VALUES (?,?,?,?,?,?,?,'student')",
-                                (sid, vals["姓名"], vals["学院"], vals["专业"], vals["班级"], gpa, pwd_hash))
+                            conn.execute("INSERT INTO students (student_id,name,college,major,class_name,gpa,password_hash,role,english_cert,english_score) VALUES (?,?,?,?,?,?,?,'student',?,?)",
+                                (sid, vals["姓名"], vals["学院"], vals["专业"], vals["班级"], gpa, pwd_hash, cert, cert_score))
                     else:
                         conflict_sql = config.get("conflict_sql")
                         if conflict_sql:

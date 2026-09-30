@@ -5,8 +5,11 @@
 1. 获取学生的专业、课程、竞赛、实习、项目数据
 2. 获取该专业的能力维度配置
 3. 分别从四个数据源计算各维度的贡献分
-4. 归一化到 0-100 分，生成解释信息
+4. 归一化到 0-1 后转百分制，生成解释信息（归一化规则见 ability_score.py）
 """
+
+from ability_score import ability_score_100
+from match_score import match_job
 
 LEVEL_SCORE = {"国家级": 4, "省级": 3}
 AWARD_SCORE = {"特等奖": 5, "一等奖": 4, "二等奖": 3, "三等奖": 2, "参与奖": 1}
@@ -29,6 +32,44 @@ COMPETITION_ABILITY_MAP = {
     "英语竞赛": {"英语能力": 0.8, "沟通表达": 0.4},
     "挑战杯": {"团队协作": 0.7, "工程实践": 0.5, "经济洞察": 0.4},
 }
+
+# 英语证书 → 等级权重(0~1)。阈值取常见的"门槛线":
+#   四级 425 是多数学校的毕业线,550 起算良好,600 起算优秀;
+#   六级 425 是常见求职门槛,500/550/600 依次递进;
+#   雅思 6.5 / 托福 90 是主流留学门槛,故从这一档起算 0.7。
+# 取值时取「不超过该分数的最高档」,低于最低档或证书为空则不计贡献。
+ENGLISH_CERT_LEVELS = {
+    "CET4":  [(425, 0.40), (550, 0.50), (600, 0.60)],
+    "CET6":  [(425, 0.60), (500, 0.70), (550, 0.80), (600, 0.90)],
+    "IELTS": [(6.0, 0.60), (6.5, 0.70), (7.0, 0.80), (7.5, 0.90)],
+    "TOEFL": [(80, 0.60), (90, 0.70), (100, 0.80), (110, 0.90)],
+}
+
+# 证书贡献的满分。取 15 是为了与竞赛同量级——两者都是"绝对分"来源,
+# 不受 credit_weight 的学分摊薄影响,这是英语能力此前最缺的东西。
+ENGLISH_CERT_MAX = 15.0
+
+# 各证书的分数有效区间(上限),供接口校验录入值是否离谱
+ENGLISH_CERT_MAX_SCORE = {"CET4": 710, "CET6": 710, "IELTS": 9.0, "TOEFL": 120}
+
+
+def english_cert_level(cert, score):
+    """把(证书类型, 分数)换算成 0~1 的等级权重。
+
+    证书为空、分数为空、类型不认识、或分数低于最低档时返回 None,
+    调用方据此判定"该项无贡献"(而不是记 0 分)。
+    """
+    if not cert or score is None:
+        return None
+    thresholds = ENGLISH_CERT_LEVELS.get(str(cert).strip().upper())
+    if not thresholds:
+        return None
+
+    level = None
+    for threshold, value in thresholds:
+        if float(score) >= threshold:
+            level = value
+    return level
 
 
 def evaluate_student_abilities(cursor, student_id: str) -> dict:
@@ -63,15 +104,17 @@ def evaluate_student_abilities(cursor, student_id: str) -> dict:
     # 4. 项目贡献 (满分约10分)
     _eval_projects(cursor, student_id, contributions)
 
-    # 归一化到 0-100，乘以该专业的能力权重
+    # 5. 英语证书贡献 (满分15分，仅对设有"英语能力"维度的专业生效)
+    _eval_english_cert(cursor, student_id, contributions)
+
+    # 归一化到 0-100。能力分只表达"该维度能力有多强"，**不乘专业权重** ——
+    # 权重由匹配度公式的 e_i 承担（见 match_score.combine_matches），避免重复计入。
     final_scores = {}
-    for dim, weight in ability_dims.items():
+    for dim in ability_dims:
         raw = contributions[dim]["total"]
-        # raw * 100 / 50 得到基础分，再乘以专业权重得到加权分
-        base_score = min(100, max(0, round(raw * 100 / 50)))
-        weighted_score = min(100, max(0, round(base_score * weight * (1 / 0.2))))  # 以0.2为基准权重
         final_scores[dim] = {
-            "score": weighted_score,
+            "score": ability_score_100(raw, dim),
+            "raw": round(raw, 2),
             "details": contributions[dim]["details"],
         }
 
@@ -177,16 +220,20 @@ def _eval_internships(cursor, student_id, contributions):
         company_v = COMPANY_TIER.get(intern["company"], 2)
         raw = company_v / 5  # 归一化到 0~1
 
-        # 根据职位判断贡献维度
+        # 根据职位判断贡献维度。
+        # 任何岗位的实习都涉及需求对接、进度汇报与文档撰写，故各技术/金融分支统一
+        # 附带沟通表达贡献 —— 此前只有"前端"和兜底分支带沟通表达，导致后端/算法
+        # 实习的学生该维度几乎没有数据来源（只有 3 门课程映射）。
         position = intern["position"]
         if any(kw in position for kw in ["后端", "开发", "软件"]):
-            ability_map = {"工程实践": 0.7, "团队协作": 0.5, "编程能力": 0.4}
+            ability_map = {"工程实践": 0.7, "团队协作": 0.5, "编程能力": 0.4, "沟通表达": 0.3}
         elif "前端" in position:
             ability_map = {"工程实践": 0.7, "编程能力": 0.5, "沟通表达": 0.4}
         elif "算法" in position:
-            ability_map = {"算法思维": 0.7, "编程能力": 0.5, "学习能力": 0.4}
+            ability_map = {"算法思维": 0.7, "编程能力": 0.5, "学习能力": 0.4, "沟通表达": 0.3}
         elif any(kw in position for kw in ["金融", "行业研究", "信贷", "风险", "分析"]):
-            ability_map = {"财务技能": 0.6, "经济洞察": 0.5, "风险意识": 0.5, "数理分析": 0.4}
+            ability_map = {"财务技能": 0.6, "经济洞察": 0.5, "风险意识": 0.5, "数理分析": 0.4,
+                           "沟通表达": 0.4}
         else:
             ability_map = {"团队协作": 0.5, "沟通表达": 0.5, "学习能力": 0.5}
 
@@ -229,9 +276,10 @@ def _eval_projects(cursor, student_id, contributions):
             ability_map["财务技能"] = max(ability_map.get("财务技能", 0), 0.4)
             ability_map["数理分析"] = max(ability_map.get("数理分析", 0), 0.3)
 
-        # 最低保障
+        # 最低保障：任何项目都涉及分工协作、进度同步与成果汇报
         ability_map["团队协作"] = max(ability_map.get("团队协作", 0), 0.3)
         ability_map["学习能力"] = max(ability_map.get("学习能力", 0), 0.3)
+        ability_map["沟通表达"] = max(ability_map.get("沟通表达", 0), 0.3)
 
         for dim, weight in ability_map.items():
             if dim in contributions:
@@ -242,6 +290,37 @@ def _eval_projects(cursor, student_id, contributions):
                     "value": round(contrib, 1),
                     "comment": f"队内排名第{proj['rank']}，{proj['period']}",
                 })
+
+
+def _eval_english_cert(cursor, student_id, contributions):
+    """英语证书贡献。
+
+    英语能力此前只有课程 + 一个"英语竞赛"入口,而课程贡献受 credit_weight 的
+    学分摊薄影响(分母是全专业课程总学分),实测该维度的上限只有 40 分的
+    36%~44% —— 就算课程全考 100 分、拿到国家级特等奖也够不着及格线。
+    证书像竞赛一样是"绝对分"来源,正好补上这个缺口。
+    """
+    if "英语能力" not in contributions:
+        return  # 该专业没有这个维度(如软件工程)
+
+    row = cursor.execute(
+        "SELECT english_cert, english_score FROM students WHERE student_id = ?",
+        (student_id,),
+    ).fetchone()
+    if not row:
+        return
+
+    level = english_cert_level(row["english_cert"], row["english_score"])
+    if level is None:
+        return  # 未填写或未达最低档，保持"无贡献"
+
+    contrib = level * ENGLISH_CERT_MAX
+    contributions["英语能力"]["total"] += contrib
+    contributions["英语能力"]["details"].append({
+        "source": f"英语证书: {row['english_cert']} {row['english_score']:g}",
+        "value": round(contrib, 1),
+        "comment": f"等级权重 {level}，满分 {ENGLISH_CERT_MAX:g}",
+    })
 
 
 def match_jobs(cursor, student_id: str) -> list:
@@ -260,7 +339,7 @@ def match_jobs(cursor, student_id: str) -> list:
         return []  # 无任何数据，无法评估
 
     ability_result = evaluate_student_abilities(cursor, student_id)
-    student_abilities = {dim: info["score"] for dim, info in ability_result["abilities"].items()}
+    abilities = ability_result["abilities"]
     major = ability_result["major"]
 
     # 根据学生专业筛选相关岗位
@@ -292,54 +371,70 @@ def match_jobs(cursor, student_id: str) -> list:
         # 跳过与该专业无关的岗位
         if relevant_jobs and job_name not in relevant_jobs:
             continue
-        total_match = 0
-        total_weight = 0
-        dim_matches = []
-        gaps = []
 
+        # 组装维度规格（0~100 口径，换算与公式由 match_score 负责）
+        specs = []
         for req in requirements:
             dim = req["dimension"]
-            required = req["required"]
-            weight = req["weight"]
-
-            student_score = student_abilities.get(dim)
-            if student_score is None:
-                # 该维度学生无数据，不计入匹配
-                dim_matches.append({
-                    "dimension": dim, "student_score": None, "required": required,
-                    "match_rate": None, "weight": weight, "insufficient": True,
-                })
-                continue
-            student_score = max(0, student_score)  # 确保非负
-
-            # 单维度匹配度 = 学生分/要求分 (max 100%)
-            dim_match = min(100, round(student_score / required * 100, 1)) if required > 0 else 100
-            total_match += dim_match * weight
-            total_weight += weight
-
-            dim_matches.append({
+            info = abilities.get(dim)
+            # 两种情况都算"无证据"：该维度不在学生的能力配置里，或维度在配置里
+            # 但没有任何数据来源（raw == 0）。二者都交给 match_score 的"数据缺失"
+            # 分支处理（m = 0 且权重保留在分母，偏严，避免缺失维度反而抬高总分）。
+            student_score = None if (info is None or info.get("raw", 0) == 0) else info["score"]
+            specs.append({
                 "dimension": dim,
                 "student_score": student_score,
-                "required": required,
-                "match_rate": dim_match,
-                "weight": weight,
+                "required_level": req["required"],
+                "weight": req["weight"],
             })
 
-            if dim_match < 80:
+        # 单维度匹配度 m = 1 - |s - r|，综合 D = Σ e·m，得分 = 100·D
+        job = match_job(job_name, specs)
+
+        dim_matches = []
+        gaps = []
+        for d in job.dimensions:
+            dim_matches.append({
+                "dimension": d.dimension,
+                "student_score": None if d.student is None else round(d.student * 100, 1),
+                "required": None if d.required is None else round(d.required * 100, 1),
+                "match_rate": None if (d.data_missing or d.no_requirement) else round(d.match * 100, 1),
+                "weight": d.weight,
+                "insufficient": d.data_missing,
+                "data_missing": d.data_missing,
+                "no_requirement": d.no_requirement,
+            })
+
+            # 数据缺失/岗位无要求的维度不生成"提升建议" —— 前者不是短板而是没证据，
+            # 后者岗位根本不看。缺失情况单独通过 missing_dimensions 暴露给前端。
+            if d.data_missing or d.no_requirement:
+                continue
+
+            # 只有"学生低于岗位要求"才算短板。不能只看 match_rate < 80:
+            # m = 1-|s-r| 对超额达标同样计差,一个远超要求的维度匹配度同样会掉到
+            # 80 以下;若据此生成提升建议,就会出现"你已超出 35 分,建议多刷题"
+            # 这种反向建议。
+            match_rate = round(d.match * 100, 1)
+            if d.student < d.required and match_rate < 80:
+                current = d.student * 100
+                required = d.required * 100
                 gaps.append({
-                    "dimension": dim,
-                    "current": student_score,
-                    "required": required,
-                    "gap": required - student_score,
-                    "suggestion": _get_improvement_suggestion(dim, student_score, required, major),
+                    "dimension": d.dimension,
+                    "current": round(current, 1),
+                    "required": round(required, 1),
+                    "gap": round(required - current, 1),
+                    "suggestion": _get_improvement_suggestion(d.dimension, current, required, major),
                 })
 
-        overall_match = round(total_match / total_weight, 1) if total_weight > 0 else 0
         results.append({
             "job_name": job_name,
-            "overall_match": overall_match,
+            "overall_match": job.score,
+            "d_base": round(job.d_base * 100, 1),
+            "d_final": round(job.d_final * 100, 1),
             "dim_matches": dim_matches,
             "gaps": gaps,
+            "missing_dimensions": job.missing_dimensions,
+            "gate_failed": job.gate_failed,
         })
 
     # 按整体匹配度排序

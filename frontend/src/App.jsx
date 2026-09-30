@@ -13,6 +13,7 @@ const ProjectsPage = lazy(() => import("./pages/student/ProjectsPage"));
 const TrainingPlanPage = lazy(() => import("./pages/student/TrainingPlanPage"));
 const AbilitiesPage = lazy(() => import("./pages/student/AbilitiesPage"));
 const JobMatchPage = lazy(() => import("./pages/student/JobMatchPage"));
+const ResumePage = lazy(() => import("./pages/student/ResumePage"));
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
 const DashboardPage = lazy(() => import("./pages/admin/DashboardPage"));
 const StudentDetailLayout = lazy(() => import("./pages/admin/StudentDetailLayout"));
@@ -72,6 +73,7 @@ export default function App() {
             <Route path="plan" element={<TrainingPlanPage />} />
             <Route path="abilities" element={<AbilitiesPage />} />
             <Route path="jobs" element={<JobMatchPage />} />
+            <Route path="resume" element={<ResumePage />} />
           </Route>
           <Route path="/admin" element={<PrivateRoute allowedRole="admin"><AdminLayout /></PrivateRoute>}>
             <Route index element={<DashboardPage />} />

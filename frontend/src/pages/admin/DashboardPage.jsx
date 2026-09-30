@@ -1,8 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Spin, Statistic, Table, Tag, message } from "antd";
+import { Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Spin, Statistic, Table, Tag, Tooltip, message } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, BookOutlined, TrophyOutlined, ExperimentOutlined, ProjectOutlined, SearchOutlined, ClearOutlined } from "@ant-design/icons";
 import { adminListStudents, adminGetStats, adminCreateStudent, adminUpdateStudent, adminDeleteStudent, adminBatchDelete, adminBatchResetPwd } from "../../api";
+
+// 与后端 evaluation.ENGLISH_CERT_LEVELS 的最低档 / ENGLISH_CERT_MAX_SCORE 保持一致:
+// 下限是"够得着最低档"的分数,下限以下录进去也没有意义(后端会 400)。
+const CERT_RANGE = {
+  CET4:  { min: 425, max: 710, step: 1,   placeholder: "425 ~ 710" },
+  CET6:  { min: 425, max: 710, step: 1,   placeholder: "425 ~ 710" },
+  IELTS: { min: 6,   max: 9,   step: 0.5, placeholder: "6.0 ~ 9.0" },
+  TOEFL: { min: 80,  max: 120, step: 1,   placeholder: "80 ~ 120" },
+};
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -17,6 +26,8 @@ export default function DashboardPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form] = Form.useForm();
+  // 英语成绩的取值范围随证书类型变，所以要盯着证书字段
+  const certValue = Form.useWatch("english_cert", form);
 
   useEffect(() => { loadData(); }, []);
 
@@ -73,11 +84,22 @@ export default function DashboardPage() {
   const openEdit = (s) => { setEditing(s); form.setFieldsValue(s); setModalOpen(true); };
   const handleSubmit = async () => {
     const vals = await form.validateFields();
+    // 清空下拉框拿到的是 undefined，统一成空字符串再比较
+    const cert = vals.english_cert || "";
+    const score = vals.english_score ?? null;
     if (editing) {
       const data = {}; for (const k of ["name","college","major","class_name","gpa"]) if (vals[k] !== editing[k]) data[k] = vals[k];
       if (vals.password) data.password = vals.password;
+      // 后端把"空字符串"当清空、"不传"当不改动,所以清空证书必须显式送一个 ""。
+      // 证书没动时两个字段都不送,免得凭空覆盖。
+      if (cert !== (editing.english_cert || "") || score !== (editing.english_score ?? null)) {
+        data.english_cert = cert;
+        if (cert) data.english_score = score;
+      }
       if (Object.keys(data).length > 0) await adminUpdateStudent(editing.student_id, data);
-    } else { await adminCreateStudent(vals); }
+    } else {
+      await adminCreateStudent({ ...vals, english_cert: cert || null, english_score: cert ? score : null });
+    }
     message.success(editing ? "更新成功" : "创建成功"); setModalOpen(false); loadData();
   };
   const handleDelete = async (sid) => { await adminDeleteStudent(sid); message.success("已删除"); loadData(); };
@@ -211,6 +233,46 @@ export default function DashboardPage() {
           <Row gutter={12}>
             <Col span={12}><Form.Item name="class_name" label="班级" rules={[{ required: true }]}><Input /></Form.Item></Col>
             <Col span={12}><Form.Item name="gpa" label="GPA" rules={[{ required: true }]}><InputNumber min={0} max={5} step={0.01} style={{ width: "100%" }} /></Form.Item></Col>
+          </Row>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                name="english_cert"
+                label={<Tooltip title="只有金融学设有「英语能力」维度，其他专业填了也不参与评分">
+                  英语证书</Tooltip>}
+              >
+                <Select
+                  allowClear
+                  placeholder="不填"
+                  options={Object.keys(CERT_RANGE).map((c) => ({ value: c, label: c }))}
+                  onChange={(v) => { if (!v) form.setFieldValue("english_score", null); }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="english_score"
+                label="英语成绩"
+                rules={certValue ? [
+                  { required: true, message: `请填写 ${certValue} 成绩` },
+                  // 兜底。手输越界值时 antd 会在失焦时自动钳到边界,所以这条平时
+                  // 不会亮;留着是防"值从别的途径越界"时能给出提示而不是后端 400。
+                  // (合成 DOM 事件测不出钳制 —— rc-input-number 只在真实输入时才
+                  //  钳,自己在浏览器里试才准。)
+                  { type: "number", min: CERT_RANGE[certValue].min, max: CERT_RANGE[certValue].max,
+                    message: `${certValue} 成绩应在 ${CERT_RANGE[certValue].placeholder} 之间` },
+                ] : []}
+              >
+                <InputNumber
+                  disabled={!certValue}
+                  min={CERT_RANGE[certValue]?.min}
+                  max={CERT_RANGE[certValue]?.max}
+                  step={CERT_RANGE[certValue]?.step}
+                  placeholder={CERT_RANGE[certValue]?.placeholder || "先选证书"}
+                  style={{ width: "100%" }}
+                />
+              </Form.Item>
+            </Col>
           </Row>
           <Form.Item name="password" label={editing ? "新密码（留空不修改）" : "密码"} rules={editing ? [] : [{ required: true }]}><Input.Password /></Form.Item>
         </Form>

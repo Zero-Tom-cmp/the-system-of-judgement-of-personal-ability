@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>简历模板 B · 技术双栏（版式参考 Orbit-Theme 结构）</title>
+<style>
+  /* ========= 版式参考来源 =========
+     xriley/Orbit-Theme 的布局骨架：
+     wrapper = sidebar-wrapper（profile + contact + 教育 + 技能）+ main-wrapper（section 纵向）
+     经历条目 = upper-row（职位 | 时间）+ company + details
+     改为 A4 印刷尺寸 + 中文字体栈 + 技能标签替代进度条 */
+
+  @page { size: A4; margin: 0; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --navy: #24384d;
+    --navy-deep: #1a2a3a;
+    --accent: #3f8fc4;
+    --accent-pale: #e8f2f9;
+    --ink: #1c2733;
+    --sub: #5f6b7a;
+    --line: #e4e9ee;
+  }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    font-family: "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 9.8pt;
+    line-height: 1.45;
+    color: var(--ink);
+    background: #e8eaed;
+  }
+
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 28px auto;
+    background: #fff;
+    box-shadow: 0 3px 18px rgba(0, 0, 0, .16);
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ================= 左栏 ================= */
+  .sidebar {
+    width: 66mm;
+    flex-shrink: 0;
+    background: var(--navy);
+    color: #fff;
+    padding: 14mm 7mm 12mm;
+  }
+
+  .profile { text-align: center; padding-bottom: 6mm; }
+  .avatar {
+    width: 26mm; height: 26mm;
+    margin: 0 auto 4mm;
+    border-radius: 50%;
+    background: var(--navy-deep);
+    border: 2px solid rgba(255, 255, 255, .3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20pt;
+    font-weight: 700;
+  }
+  .name { font-size: 16pt; font-weight: 700; letter-spacing: 3px; }
+  .tagline { margin-top: 2mm; font-size: 8.8pt; color: #a9c2d8; letter-spacing: 1px; }
+
+  .container-block { margin-top: 6mm; }
+  .container-block-title {
+    font-size: 10pt;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding-bottom: 1.5mm;
+    margin-bottom: 2.5mm;
+    border-bottom: 1px solid rgba(255, 255, 255, .3);
+  }
+
+  .contact-list { list-style: none; }
+  .contact-list li {
+    font-size: 8.6pt;
+    color: #d7e3ee;
+    margin-bottom: 1.6mm;
+    word-break: break-all;
+  }
+  .contact-list li .lbl { color: #8fabc6; margin-right: 4px; }
+
+  .edu-item .school { font-size: 9pt; font-weight: 600; color: #fff; }
+  .edu-item .meta { font-size: 8.2pt; color: #a9c2d8; margin-top: 0.8mm; line-height: 1.6; }
+
+  .course-list { list-style: none; }
+  .course-list li {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8.4pt;
+    color: #d7e3ee;
+    margin-bottom: 1.2mm;
+  }
+  .course-list li b { color: #fff; font-weight: 600; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag {
+    font-size: 8pt;
+    padding: 1px 7px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .12);
+    border: 1px solid rgba(255, 255, 255, .22);
+    color: #eaf2fa;
+  }
+
+  /* ================= 右栏 ================= */
+  .main {
+    flex: 1;
+    padding: 12mm 9mm 10mm 8mm;
+  }
+
+  .main section { margin-bottom: 6mm; break-inside: avoid; }
+  .main section:last-child { margin-bottom: 0; }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5pt;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--navy);
+    margin-bottom: 3mm;
+  }
+  .section-title::before {
+    content: "";
+    width: 4px; height: 13px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+
+  .item { margin-bottom: 3.5mm; break-inside: avoid; }
+  .item:last-child { margin-bottom: 0; }
+
+  .upper-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .job-title { font-size: 10pt; font-weight: 700; }
+  .time { font-size: 8.8pt; color: var(--sub); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .company { font-size: 9.2pt; color: var(--accent); font-weight: 600; margin-top: 0.5mm; }
+  .tech { font-size: 8.6pt; color: var(--sub); margin-top: 0.5mm; }
+
+  .details ul { list-style: none; margin-top: 1.5mm; }
+  .details li {
+    position: relative;
+    padding-left: 11px;
+    margin-top: 1.5px;
+    font-size: 9.2pt;
+    text-align: justify;
+  }
+  .details li::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 6px;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .comp {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 2.5px;
+  }
+  .comp-name { font-size: 9.3pt; font-weight: 600; }
+  .comp-meta { font-size: 8.6pt; color: var(--sub); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* ========= 屏幕预览提示（打印隐藏） ========= */
+  .demo-note {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(20, 20, 20, .82);
+    color: #fff;
+    font-size: 12px;
+    padding: 5px 14px;
+    border-radius: 99px;
+    letter-spacing: 1px;
+    z-index: 99;
+  }
+
+  @media print {
+    body { background: #fff; }
+    .page { width: auto; min-height: auto; margin: 0; box-shadow: none; }
+    .sidebar { min-height: 297mm; }
+    .demo-note { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-note">示例数据 · 仅用于版式确认，尚未接入真实数据</div>
+
+<div class="page">
+
+  <!-- ================= 左栏 ================= -->
+  <aside class="sidebar">
+    <div class="profile">
+      <div class="avatar">陈</div>
+      <div class="name">陈嘉睿</div>
+      <div class="tagline">后端开发方向 · 本科在读</div>
+    </div>
+
+    <div class="container-block">
+      <h3 class="container-block-title">联系方式</h3>
+      <ul class="contact-list">
+        <li><span class="lbl">电话</span>138-0000-0000</li>
+        <li><span class="lbl">邮箱</span>chenjr@example.com</li>
+        <li><span class="lbl">GitHub</span>github.com/chenjr</li>
+        <li><span class="lbl">城市</span>上海</li>
+      </ul>
+    </div>
+
+    <div class="container-block">
+      <h3 class="container-block-title">教育背景</h3>
+      <div class="edu-item">
+        <div class="school">计算机学院 · 软件工程</div>
+        <div class="meta">本科 · 2021.09 — 2025.06</div>
+        <div class="meta">GPA 3.82 / 4.0 · 专业前 4%</div>
+        <div class="meta">已修 42 门课程 / 156 学分</div>
+      </div>
+    </div>
+
+    <div class="container-block">
+      <h3 class="container-block-title">核心课程</h3>
+      <ul class="course-list">
+        <li><span>数据结构与算法</span><b>95</b></li>
+        <li><span>操作系统</span><b>93</b></li>
+        <li><span>数据库系统原理</span><b>92</b></li>
+        <li><span>计算机网络</span><b>91</b></li>
+        <li><span>软件工程</span><b>90</b></li>
+      </ul>
+    </div>
+
+    <div class="container-block">
+      <h3 class="container-block-title">技能标签</h3>
+      <div class="tags">
+        <span class="tag">Python</span>
+        <span class="tag">Java</span>
+        <span class="tag">Go</span>
+        <span class="tag">FastAPI</span>
+        <span class="tag">Spring Boot</span>
+        <span class="tag">MySQL</span>
+        <span class="tag">Redis</span>
+        <span class="tag">Docker</span>
+        <span class="tag">Git</span>
+        <span class="tag">Linux</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= 右栏 ================= -->
+  <main class="main">
+
+    <section>
+      <h2 class="section-title">实习经历</h2>
+
+      <div class="item">
+        <div class="upper-row">
+          <span class="job-title">后端开发实习生</span>
+          <span class="time">2024.07 — 2024.09</span>
+        </div>
+        <div class="company">星野科技有限公司</div>
+        <div class="details">
+          <ul>
+            <li>主导订单查询服务重构，基于 Go + Gin 引入 Redis 二级缓存，接口 P99 延迟由 320ms 降至 85ms</li>
+            <li>设计 MySQL 分表方案支撑 5000 万行订单数据，慢查询下降 90%，写入吞吐提升 3 倍</li>
+            <li>补充单元测试 120 余个，模块测试覆盖率由 45% 提升至 82%</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="upper-row">
+          <span class="job-title">后端开发实习生</span>
+          <span class="time">2023.07 — 2023.08</span>
+        </div>
+        <div class="company">云枢信息技术有限公司</div>
+        <div class="details">
+          <ul>
+            <li>参与用户中心 API 开发，基于 Spring Boot 完成 8 个 RESTful 接口，日均调用量 10 万+</li>
+            <li>使用 JMeter 压测定位慢接口，通过索引优化将平均响应时间由 450ms 降至 120ms</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">项目经历</h2>
+
+      <div class="item">
+        <div class="upper-row">
+          <span class="job-title">智能简历解析系统</span>
+          <span class="time">2023.09 — 2023.12</span>
+        </div>
+        <div class="company">项目负责人</div>
+        <div class="tech">技术栈：Python / FastAPI / PaddleOCR / MySQL / Docker</div>
+        <div class="details">
+          <ul>
+            <li>负责架构设计与核心解析模块开发，实现简历结构化字段抽取，准确率达 92%</li>
+            <li>设计规则引擎支持 6 类版式自动适配，人工校对工作量减少约 70%</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="upper-row">
+          <span class="job-title">校园二手交易平台</span>
+          <span class="time">2022.10 — 2023.01</span>
+        </div>
+        <div class="company">后端负责人</div>
+        <div class="tech">技术栈：Java / Spring Boot / MySQL / Redis</div>
+        <div class="details">
+          <ul>
+            <li>独立完成商品、订单、支付三个核心模块的后端开发与部署，累计注册用户 3000+</li>
+            <li>引入 Redis 缓存热点商品数据，首屏加载时间由 1.8s 优化至 0.6s</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">竞赛获奖</h2>
+      <div class="comp">
+        <span class="comp-name">中国大学生计算机设计大赛</span>
+        <span class="comp-meta">国家级 · 二等奖 · 队内第 2 · 2024.08</span>
+      </div>
+      <div class="comp">
+        <span class="comp-name">蓝桥杯全国软件和信息技术专业人才大赛</span>
+        <span class="comp-meta">省级 · 一等奖 · 队内第 1 · 2023.04</span>
+      </div>
+      <div class="comp">
+        <span class="comp-name">中国大学生服务外包创新创业大赛</span>
+        <span class="comp-meta">省级 · 三等奖 · 队内第 3 · 2023.06</span>
+      </div>
+    </section>
+
+  </main>
+
+</div>
+
+</body>
+</html>

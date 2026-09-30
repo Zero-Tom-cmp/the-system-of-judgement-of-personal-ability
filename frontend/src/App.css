@@ -118,4 +118,144 @@
   }
   .ant-collapse-content { display: block !important; }
   .ant-collapse-content-box { padding: 8px !important; }
+
+  /* 简历打印专用 */
+  .resume-page { margin: 0 !important; }
+  .resume-sheet {
+    width: auto !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+  .resume-sheet .r-entry { break-inside: avoid; }
+}
+
+/* ====== 简历（模板一 · 极简单栏，与后端 PDF 版式保持一致） ====== */
+.resume-page {
+  --accent: #0f766e;
+  --accent-pale: #f0fdfa;
+  --ink: #0f172a;
+  --sub: #475569;
+}
+
+.resume-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 1.5cm;
+  background: #fff;
+  box-shadow: 0 3px 18px rgba(0, 0, 0, 0.12);
+  font-family: "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 10pt;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.resume-sheet .r-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12pt;
+  padding-bottom: 6pt;
+  border-bottom: 1.5pt solid var(--accent);
+}
+.resume-sheet h1 {
+  font-size: 20pt;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  line-height: 1.15;
+  color: var(--ink);
+  margin: 0;
+}
+.resume-sheet .tagline {
+  display: block;
+  margin-top: 2pt;
+  font-size: 10pt;
+  font-weight: 600;
+  color: var(--accent);
+}
+.resume-sheet .contact {
+  text-align: right;
+  font-size: 9pt;
+  line-height: 1.75;
+  color: var(--sub);
+  white-space: nowrap;
+}
+.resume-sheet .contact .ph { color: #94a3b8; }
+
+.resume-sheet h2 {
+  margin: 11pt 0 6pt;
+  padding: 2.5pt 8pt;
+  font-size: 10.8pt;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--accent);
+  background: var(--accent-pale);
+  border-left: 3pt solid var(--accent);
+  border-radius: 0 3pt 3pt 0;
+}
+.resume-sheet section:first-of-type h2 { margin-top: 9pt; }
+
+.resume-sheet .r-entry { margin-bottom: 7pt; }
+.resume-sheet .r-entry:last-child { margin-bottom: 0; }
+.resume-sheet .r-entry-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8pt;
+}
+.resume-sheet .r-title { font-weight: 700; }
+.resume-sheet .r-role { margin-left: 6pt; font-size: 9.4pt; font-weight: 600; color: var(--accent); }
+.resume-sheet .r-date {
+  font-size: 9pt;
+  color: var(--sub);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.resume-sheet .r-sub { margin-top: 1pt; font-size: 9.4pt; color: var(--sub); }
+
+.resume-sheet ul.r-bullets { list-style: none; margin-top: 2.5pt; margin-bottom: 0; padding: 0; }
+.resume-sheet ul.r-bullets li {
+  position: relative;
+  padding-left: 12pt;
+  margin-top: 2pt;
+  text-align: justify;
+}
+.resume-sheet ul.r-bullets li::before {
+  content: "";
+  position: absolute;
+  left: 2pt;
+  top: 6.5pt;
+  width: 3.5pt;
+  height: 3.5pt;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.resume-sheet .r-skill-group { display: flex; align-items: baseline; margin-top: 3pt; }
+.resume-sheet .r-skill-label { flex: 0 0 86pt; font-size: 9.6pt; font-weight: 700; color: var(--accent); }
+.resume-sheet .r-skill-content { flex: 1; }
+
+.resume-sheet .r-comp {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8pt;
+  margin-top: 3.5pt;
+}
+.resume-sheet .r-comp-name { font-weight: 600; }
+.resume-sheet .r-comp-meta {
+  font-size: 9pt;
+  color: var(--sub);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.resume-sheet .r-empty { color: #94a3b8; font-size: 9.4pt; }
+.resume-sheet .r-footer {
+  margin-top: 14pt;
+  text-align: center;
+  font-size: 8pt;
+  color: #9aa4b2;
+  letter-spacing: 1px;
 }

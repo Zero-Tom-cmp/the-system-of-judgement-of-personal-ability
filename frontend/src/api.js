@@ -53,6 +53,14 @@ export function getJobMatch(studentId) {
   return api.get(`/student/${studentId}/job-match`);
 }
 
+export function getResume(studentId) {
+  return api.get(`/student/${studentId}/resume`);
+}
+
+export function downloadResumePdf(studentId) {
+  return api.get(`/student/${studentId}/resume/pdf`, { responseType: "blob" });
+}
+
 export function getTrainingPlan(major) {
   return api.get(`/training-plan/${encodeURIComponent(major)}`);
 }

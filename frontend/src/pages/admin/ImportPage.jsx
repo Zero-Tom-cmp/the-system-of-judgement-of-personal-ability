@@ -206,6 +206,10 @@ export default function ImportPage() {
       <Modal title="综合导入 Excel" open={allModalOpen} onOk={handleAllImport} onCancel={() => setAllModalOpen(false)} confirmLoading={allLoading}>
         <Space direction="vertical" style={{ width: "100%" }}>
           <div style={{ color: "#666", fontSize: 13 }}>5个Sheet：学生基本信息、课程成绩、竞赛获奖、企业实习、项目经历</div>
+          <div style={{ color: "#999", fontSize: 12 }}>
+            「学生基本信息」可选加两列 <b>英语证书</b>、<b>英语成绩</b>（CET4 / CET6 / IELTS / TOEFL），
+            用于计算金融学专业的「英语能力」。不加这两列的老模板照常导入，已有证书也不会被清空。
+          </div>
           <Upload accept=".xlsx,.xls" maxCount={1} beforeUpload={(f) => { setAllFile(f); return false; }} onRemove={() => setAllFile(null)}
             fileList={allFile ? [{ uid: "-1", name: allFile.name, status: "done" }] : []}>
             <Button icon={<UploadOutlined />}>选择 Excel 文件</Button>

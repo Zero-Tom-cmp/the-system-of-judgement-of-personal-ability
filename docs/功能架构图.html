@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>人岗匹配评估系统 · 功能架构图</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #EDEFF2;
+    font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    padding: 28px 0 48px;
+    color: #1F2328;
+  }
+  .canvas {
+    width: 1420px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 34px 40px 44px;
+    box-shadow: 0 2px 18px rgba(0,0,0,.10);
+  }
+  h1 {
+    text-align: center;
+    font-size: 27px;
+    letter-spacing: 2px;
+    font-weight: 700;
+    margin-bottom: 26px;
+  }
+  h2 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 40px 0 16px;
+    padding-left: 11px;
+    border-left: 5px solid #1F2328;
+    letter-spacing: 1px;
+  }
+  h2:first-of-type { margin-top: 6px; }
+
+  /* ---------- 功能架构图：色带 ---------- */
+  .band {
+    display: flex;
+    gap: 12px;
+    padding: 11px;
+    margin-bottom: 11px;
+    border-radius: 6px;
+    background: var(--bg);
+  }
+  .band-label {
+    flex: 0 0 158px;
+    background: var(--c);
+    color: #fff;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 6px;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .band-label .cn { font-size: 16px; font-weight: 700; letter-spacing: .5px; }
+  .band-label .en {
+    font-size: 11px; letter-spacing: 1.6px;
+    opacity: .82; margin-top: 4px; font-family: Consolas, monospace;
+  }
+  .band-items {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-content: center;
+  }
+  .item {
+    background: var(--c2);
+    color: #fff;
+    font-size: 14px;
+    padding: 11px 15px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex: 1 1 auto;
+    text-align: center;
+    min-width: 118px;
+  }
+
+  /* ---------- 协作关系图 ---------- */
+  .flow-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0;
+    margin-bottom: 14px;
+  }
+  .node {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 14px 18px;
+    border-radius: 5px;
+    text-align: center;
+    line-height: 1.3;
+    flex: 0 0 auto;
+  }
+  .node small { display: block; font-size: 10.5px; font-weight: 400; opacity: .8; letter-spacing: .6px; margin-top: 2px; font-family: Consolas, monospace; }
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 8px;
+    flex: 0 0 auto;
+    min-width: 82px;
+  }
+  .flow-caption {
+    text-align: center; font-size: 12px; color: #6B7480;
+    margin: -6px 0 16px;
+  }
+  .flow-caption b { color: #1F2328; }
+  .arrow .lbl { font-size: 11px; color: #5A6472; white-space: nowrap; margin-bottom: 1px; }
+  .arrow .line {
+    width: 100%;
+    height: 2px;
+    background: #98A2B0;
+    position: relative;
+  }
+  .arrow .line::after {
+    content: ""; position: absolute; right: -1px; top: -4px;
+    border-left: 9px solid #98A2B0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+  .gate {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: #12A3B4; color: #fff; border-radius: 5px;
+    padding: 13px; font-size: 15px; font-weight: 700; letter-spacing: 1px;
+  }
+  .gate small { font-size: 11px; font-weight: 400; opacity: .85; letter-spacing: 0; }
+  .sub-label {
+    font-size: 12px; color: #6B7480; letter-spacing: 2px;
+    margin: 20px 0 9px; text-align: center;
+  }
+  .legend-note {
+    font-size: 12px; color: #6B7480; margin-top: 18px; text-align: center; line-height: 1.9;
+  }
+  .legend-note b { color: #1F2328; }
+
+  /* ---------- 角色 ---------- */
+  .roles { display: flex; gap: 16px; }
+  .role-card {
+    flex: 1; border-radius: 6px; padding: 16px 18px;
+    border: 1.5px solid var(--c); background: var(--bg);
+  }
+  .role-head {
+    display: flex; align-items: baseline; gap: 9px;
+    padding-bottom: 10px; margin-bottom: 12px;
+    border-bottom: 1.5px solid var(--c);
+  }
+  .role-head .name { font-size: 17px; font-weight: 700; color: var(--c); letter-spacing: 1px; }
+  .role-head .meta { font-size: 12px; color: #6B7480; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip {
+    font-size: 12.5px; padding: 6px 11px; border-radius: 3px;
+    background: var(--c); color: #fff; white-space: nowrap;
+  }
+  .chip.deny { background: #D6DAE0; color: #98A2B0; text-decoration: line-through; }
+
+  .foot { margin-top: 26px; text-align: center; font-size: 12px; color: #98A2B0; }
+</style>
+</head>
+<body>
+<div class="canvas">
+
+  <h1>人岗匹配评估系统 · 功能架构图</h1>
+
+  <h2>一、功能架构</h2>
+
+  <!-- 1 认证权限 -->
+  <div class="band" style="--c:#12A3B4; --c2:#0B7C8A; --bg:#E2F4F6;">
+    <div class="band-label"><span class="cn">认证权限中心</span><span class="en">AUTH</span></div>
+    <div class="band-items">
+      <div class="item">用户登录认证</div>
+      <div class="item">JWT 令牌签发</div>
+      <div class="item">令牌校验</div>
+      <div class="item">双层角色鉴权</div>
+      <div class="item">路由守卫</div>
+      <div class="item">越权拦截</div>
+      <div class="item">密码修改 / 重置</div>
+    </div>
+  </div>
+
+  <!-- 2 数据导入 -->
+  <div class="band" style="--c:#F5821F; --c2:#D2680A; --bg:#FEF1E3;">
+    <div class="band-label"><span class="cn">数据导入中心</span><span class="en">IMPORT</span></div>
+    <div class="band-items">
+      <div class="item">Excel 一体化导入</div>
+      <div class="item">分模块 CSV 导入</div>
+      <div class="item">导入模板下载</div>
+      <div class="item">学号查重校验</div>
+      <div class="item">冲突检测</div>
+      <div class="item">冲突数据下载</div>
+      <div class="item">异常回滚与日志</div>
+    </div>
+  </div>
+
+  <!-- 3 学生数据 -->
+  <div class="band" style="--c:#1FA85C; --c2:#158043; --bg:#E3F6EB;">
+    <div class="band-label"><span class="cn">学生数据中心</span><span class="en">DATA</span></div>
+    <div class="band-items">
+      <div class="item">学生基本信息</div>
+      <div class="item">课程成绩</div>
+      <div class="item">竞赛获奖</div>
+      <div class="item">企业实习</div>
+      <div class="item">项目经历</div>
+      <div class="item">检索筛选</div>
+      <div class="item">批量操作</div>
+    </div>
+  </div>
+
+  <!-- 4 培养方案 -->
+  <div class="band" style="--c:#8E44C4; --c2:#6E2FA0; --bg:#F1E8F9;">
+    <div class="band-label"><span class="cn">培养方案中心</span><span class="en">PLAN</span></div>
+    <div class="band-items">
+      <div class="item">培养方案存储</div>
+      <div class="item">毕业要求矩阵</div>
+      <div class="item">课程能力映射</div>
+      <div class="item">能力维度定义</div>
+      <div class="item">专业权重配置</div>
+      <div class="item">培养方案查询</div>
+    </div>
+  </div>
+
+  <!-- 5 能力评估 -->
+  <div class="band" style="--c:#2E75D6; --c2:#1F57A8; --bg:#E6EEFB;">
+    <div class="band-label"><span class="cn">能力评估中心</span><span class="en">EVAL</span></div>
+    <div class="band-items">
+      <div class="item">课程贡献计算</div>
+      <div class="item">竞赛贡献计算</div>
+      <div class="item">实习贡献计算</div>
+      <div class="item">项目贡献计算</div>
+      <div class="item">英语证书贡献</div>
+      <div class="item">归一化换算</div>
+      <div class="item">得分溯源明细</div>
+      <div class="item">能力雷达图</div>
+    </div>
+  </div>
+
+  <!-- 6 岗位匹配 -->
+  <div class="band" style="--c:#E8453C; --c2:#BE2E27; --bg:#FDEAE9;">
+    <div class="band-label"><span class="cn">岗位匹配中心</span><span class="en">MATCH</span></div>
+    <div class="band-items">
+      <div class="item">岗位能力模型</div>
+      <div class="item">岗位要求配置</div>
+      <div class="item">指标权重配置</div>
+      <div class="item">匹配度测算</div>
+      <div class="item">维度差距分析</div>
+      <div class="item">能力提升建议</div>
+      <div class="item">最佳岗位推荐</div>
+    </div>
+  </div>
+
+  <!-- 7 简历输出 -->
+  <div class="band" style="--c:#D6389A; --c2:#A82A76; --bg:#FBE8F3;">
+    <div class="band-label"><span class="cn">简历输出中心</span><span class="en">RESUME</span></div>
+    <div class="band-items">
+      <div class="item">数据提炼</div>
+      <div class="item">核心课程筛选</div>
+      <div class="item">技能关键词提取</div>
+      <div class="item">能力标签生成</div>
+      <div class="item">模板渲染</div>
+      <div class="item">PDF 导出</div>
+    </div>
+  </div>
+
+  <!-- 8 系统支撑 -->
+  <div class="band" style="--c:#5B7C99; --c2:#425D75; --bg:#EAF0F4;">
+    <div class="band-label"><span class="cn">系统支撑中心</span><span class="en">SYS</span></div>
+    <div class="band-items">
+      <div class="item">规则配置</div>
+      <div class="item">数据总览看板</div>
+      <div class="item">操作日志记录</div>
+      <div class="item">日志查询</div>
+      <div class="item">数据库初始化</div>
+      <div class="item">种子数据</div>
+      <div class="item">字段迁移</div>
+    </div>
+  </div>
+
+  <!-- ===================== 协作关系 ===================== -->
+  <h2>二、模块协作关系</h2>
+
+  <div class="gate">
+    <span>认证权限中心 · 全局鉴权网关</span>
+    <small>所有请求先经此模块：身份认证 → 角色鉴权 → 放行 / 403</small>
+  </div>
+
+  <div class="sub-label">▼　　主数据流（数据在流动）　　▼</div>
+
+  <div class="flow-row">
+    <div class="node" style="background:#D2680A;">数据导入中心<small>IMPORT</small></div>
+    <div class="arrow"><span class="lbl">写入</span><span class="line"></span></div>
+    <div class="node" style="background:#158043;">学生数据中心<small>DATA</small></div>
+    <div class="arrow"><span class="lbl">5 类原始数据</span><span class="line"></span></div>
+    <div class="node" style="background:#1F57A8;">能力评估中心<small>EVAL</small></div>
+    <div class="arrow"><span class="lbl">能力分 sᵢ</span><span class="line"></span></div>
+    <div class="node" style="background:#BE2E27;">岗位匹配中心<small>MATCH</small></div>
+    <div class="arrow"><span class="lbl">匹配结果</span><span class="line"></span></div>
+    <div class="node" style="background:#A82A76;">简历输出中心<small>RESUME</small></div>
+  </div>
+
+  <div class="sub-label">▼　　标准供给（规则在注入）　　▼</div>
+
+  <div class="flow-row">
+    <div class="node" style="background:#6E2FA0;">培养方案中心<small>PLAN</small></div>
+    <div class="arrow" style="min-width:200px;"><span class="lbl">能力维度 + 课程映射 + 专业权重</span><span class="line"></span></div>
+    <div class="node" style="background:#1F57A8;">能力评估中心<small>EVAL</small></div>
+  </div>
+  <div class="flow-caption">培养方案中心决定能力评估<b>「评什么、怎么评」</b></div>
+
+  <div class="flow-row">
+    <div class="node" style="background:#425D75;">系统支撑中心<small>SYS</small></div>
+    <div class="arrow" style="min-width:200px;"><span class="lbl">岗位要求值 rᵢ + 重要度权重 eᵢ</span><span class="line"></span></div>
+    <div class="node" style="background:#BE2E27;">岗位匹配中心<small>MATCH</small></div>
+  </div>
+  <div class="flow-caption">系统支撑中心决定岗位匹配<b>「跟什么比」</b></div>
+
+  <div class="legend-note">
+    <b>主干</b>是「数据」自左向右流动：导入 → 存储 → 评估 → 匹配 → 输出<br>
+    <b>横向</b>是「规则」注入计算模块：培养方案定评估标准，岗位配置定比对基准 —— 数据与规则在主线上汇合<br>
+    所有写操作旁路记录至<b>操作日志</b>（系统支撑中心）
+  </div>
+
+  <!-- ===================== 角色设计 ===================== -->
+  <h2>三、角色与权限设计（双层权限）</h2>
+
+  <div class="roles">
+    <div class="role-card" style="--c:#5B7C99; --bg:#EAF0F4;">
+      <div class="role-head">
+        <span class="name">管理员</span>
+        <span class="meta">role = admin ｜ 教务 / 就业中心</span>
+      </div>
+      <div class="chips">
+        <span class="chip">数据总览</span>
+        <span class="chip">学生管理</span>
+        <span class="chip">学生检索</span>
+        <span class="chip">批量导入</span>
+        <span class="chip">模板下载</span>
+        <span class="chip">冲突下载</span>
+        <span class="chip">规则配置</span>
+        <span class="chip">批量删除</span>
+        <span class="chip">批量重置密码</span>
+        <span class="chip">操作日志</span>
+        <span class="chip">任意学生详情</span>
+        <span class="chip">能力评估 / 岗位匹配 / 简历</span>
+      </div>
+    </div>
+
+    <div class="role-card" style="--c:#12A3B4; --bg:#E2F4F6;">
+      <div class="role-head">
+        <span class="name">普通用户（学生）</span>
+        <span class="meta">role = student ｜ 仅限本人数据</span>
+      </div>
+      <div class="chips">
+        <span class="chip">个人总览</span>
+        <span class="chip">课程成绩</span>
+        <span class="chip">竞赛获奖</span>
+        <span class="chip">企业实习</span>
+        <span class="chip">项目经历</span>
+        <span class="chip">培养方案</span>
+        <span class="chip">实践能力评估</span>
+        <span class="chip">岗位匹配</span>
+        <span class="chip">简历 / PDF</span>
+        <span class="chip">修改本人密码</span>
+        <span class="chip deny">他人数据</span>
+        <span class="chip deny">数据增删改</span>
+        <span class="chip deny">导入 / 配置</span>
+        <span class="chip deny">操作日志</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend-note">
+    权限落地三道闸：<b>① 前端路由守卫</b>（分流 /admin 与 /student）→
+    <b>② 后端接口鉴权</b>（真正的安全边界，比对 URL 中的 student_id）→
+    <b>③ 数据层约束</b>（外键级联删除）
+  </div>
+
+  <div class="foot">人岗匹配评估系统 · 功能架构图 &nbsp;|&nbsp; 8 模块 · 双层权限 · 数据流与规则流双线汇合</div>
+
+</div>
+</body>
+</html>

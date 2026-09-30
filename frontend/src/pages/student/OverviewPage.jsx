@@ -55,6 +55,11 @@ export default function OverviewPage() {
           <Descriptions.Item label="GPA"><Tag color="blue">{info?.gpa}</Tag></Descriptions.Item>
           <Descriptions.Item label="已修学分"><Tag color="green">{info?.total_credits} 学分</Tag></Descriptions.Item>
           <Descriptions.Item label="已修课程门数">{courses.length} 门</Descriptions.Item>
+          <Descriptions.Item label="英语证书">
+            {info?.english_cert
+              ? <Tag color="purple">{info.english_cert} {info.english_score}</Tag>
+              : <span style={{ color: "#999" }}>未填写（英语能力只由课程与竞赛计算）</span>}
+          </Descriptions.Item>
         </Descriptions>
       </Card>
     </>

@@ -16,6 +16,15 @@ dist/
 
 # Conflicts & logs
 backend/conflicts/
+backend/backend.log
+frontend/vite.log
+
+# Runtime outputs (PDF render temp)
+backend/tmp/
+
+# Rendered resume previews — outputs, regenerate from the .html templates
+resume-templates/pdf/
+resume-templates/pdf$t.png
 
 # OS
 .DS_Store

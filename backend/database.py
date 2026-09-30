@@ -24,7 +24,12 @@ def init_db():
             class_name VARCHAR(50) NOT NULL,
             gpa REAL NOT NULL CHECK(gpa >= 0 AND gpa <= 5),
             password_hash VARCHAR(255) NOT NULL,
-            role VARCHAR(20) DEFAULT 'student' CHECK(role IN ('student','admin'))
+            role VARCHAR(20) DEFAULT 'student' CHECK(role IN ('student','admin')),
+            -- 英语证书。四级/六级/雅思/托福的分数口径不同(见 evaluation.ENGLISH_CERT_LEVELS),
+            -- 故拆成"类型 + 分数"两列,由 english_cert 决定怎么解释 english_score。
+            -- 两列都为 NULL 表示未填写,此时英语能力只由课程与竞赛贡献。
+            english_cert VARCHAR(20),
+            english_score REAL
         );
 
         CREATE TABLE IF NOT EXISTS courses (
@@ -114,6 +119,8 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_audit_log_time ON audit_log(created_at);
     """)
 
+    _migrate_schema(cursor)
+
     # 仅在表为空时插入种子数据
     existing = cursor.execute("SELECT COUNT(*) as c FROM students").fetchone()
     if existing["c"] == 0:
@@ -124,6 +131,21 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+
+def _migrate_schema(cursor):
+    """给已存在的库补上后续新增的列。
+
+    上面的建表语句用的是 CREATE TABLE IF NOT EXISTS —— 表已经存在时它整条跳过,
+    所以往建表语句里加列对老库不起作用,必须在这里 ALTER。幂等:已存在的列不动。
+    """
+    existing = {row["name"] for row in cursor.execute("PRAGMA table_info(students)")}
+    for column, ddl in (
+        ("english_cert", "english_cert VARCHAR(20)"),
+        ("english_score", "english_score REAL"),
+    ):
+        if column not in existing:
+            cursor.execute(f"ALTER TABLE students ADD COLUMN {ddl}")
 
 
 def _seed_ability_config(cursor):
@@ -427,16 +449,17 @@ def _seed_students(cursor):
     pwd = bcrypt.hashpw("student123".encode(), bcrypt.gensalt()).decode()
     admin_pwd = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
 
+    # (student_id, name, college, major, class_name, gpa, pwd, role, english_cert, english_score)
     students = [
-        ("2021001", "张三", "计算机学院", "软件工程", "软工2101", 3.82, pwd, "student"),
-        ("2021002", "李四", "计算机学院", "软件工程", "软工2101", 3.15, pwd, "student"),
-        ("2021003", "王五", "计算机学院", "软件工程", "软工2102", 3.38, pwd, "student"),
-        ("2021004", "赵六", "经济管理学院", "金融学", "金融2101", 3.76, pwd, "student"),
-        ("2021005", "孙七", "经济管理学院", "金融学", "金融2101", 3.22, pwd, "student"),
-        ("admin", "管理员", "信息中心", "系统管理", "admin", 0, admin_pwd, "admin"),
+        ("2021001", "张三", "计算机学院", "软件工程", "软工2101", 3.82, pwd, "student", None, None),
+        ("2021002", "李四", "计算机学院", "软件工程", "软工2101", 3.15, pwd, "student", None, None),
+        ("2021003", "王五", "计算机学院", "软件工程", "软工2102", 3.38, pwd, "student", None, None),
+        ("2021004", "赵六", "经济管理学院", "金融学", "金融2101", 3.76, pwd, "student", "IELTS", 6.5),
+        ("2021005", "孙七", "经济管理学院", "金融学", "金融2101", 3.22, pwd, "student", "CET4", 455),
+        ("admin", "管理员", "信息中心", "系统管理", "admin", 0, admin_pwd, "admin", None, None),
     ]
     cursor.executemany(
-        "INSERT INTO students (student_id, name, college, major, class_name, gpa, password_hash, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO students (student_id, name, college, major, class_name, gpa, password_hash, role, english_cert, english_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         students,
     )
 

@@ -13,6 +13,12 @@ export default function BasicPage() {
         <Descriptions.Item label="班级">{info?.class_name}</Descriptions.Item>
         <Descriptions.Item label="GPA"><Tag color="blue">{info?.gpa}</Tag></Descriptions.Item>
         <Descriptions.Item label="已修学分"><Tag color="green">{info?.total_credits} 学分</Tag></Descriptions.Item>
+        <Descriptions.Item label="英语证书">
+          {/* 仅金融学设有"英语能力"维度，其他专业填了也不参与评分（见 evaluation._eval_english_cert） */}
+          {info?.english_cert
+            ? <Tag color="purple">{info.english_cert} {info.english_score}</Tag>
+            : <span style={{ color: "#999" }}>未填写</span>}
+        </Descriptions.Item>
       </Descriptions>
     </Card>
   );

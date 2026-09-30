@@ -4,6 +4,7 @@ import {
   LogoutOutlined, IdcardOutlined, BookOutlined, TrophyOutlined,
   ExperimentOutlined, ProjectOutlined, ScheduleOutlined,
   RadarChartOutlined, CompassOutlined, HomeOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 
 const { Sider, Content } = Layout;
@@ -17,6 +18,7 @@ const MENU_ITEMS = [
   { key: "/student/plan",     icon: <ScheduleOutlined />,    label: "培养方案" },
   { key: "/student/abilities",icon: <RadarChartOutlined />,  label: "实践能力评估" },
   { key: "/student/jobs",     icon: <CompassOutlined />,     label: "岗位匹配" },
+  { key: "/student/resume",   icon: <FileTextOutlined />,    label: "我的简历" },
 ];
 
 export default function StudentLayout() {
